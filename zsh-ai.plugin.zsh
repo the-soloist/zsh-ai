@@ -1,7 +1,7 @@
 # zsh-ai - AI CLI aliases with configurable proxy
 #
 # Configuration (set in .zshrc before plugins are loaded):
-#   ZSH_AI_PROXY           - proxy command prefix (e.g., "px")
+#   ZSH_AI_PROXY           - proxy command prefix (e.g., "proxychains4")
 #   ZSH_AI_SKIP_DEFAULTS   - set to "true" to skip default aliases
 #   ZSH_AI_BYPASS          - auto-inject --dangerously-skip-permissions (default: "true")
 #   ZSH_AI_ALIASES         - associative array of extra/override aliases

@@ -22,7 +22,7 @@ Set before plugins are loaded in `.zshrc`:
 
 ```sh
 # Proxy command prefix (optional)
-export ZSH_AI_PROXY="px"
+export ZSH_AI_PROXY="proxychains4"
 
 # Auto-inject --dangerously-skip-permissions for claude (default: "true")
 export ZSH_AI_BYPASS="true"
