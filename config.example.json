@@ -1,0 +1,29 @@
+{
+  "default": "anthropic",
+  "profiles": {
+    "anthropic": {
+      "api_format": "anthropic",
+      "url": "https://api.anthropic.com/v1/messages",
+      "api_key": "sk-ant-...",
+      "model": "claude-sonnet-4-20250514"
+    },
+    "openai": {
+      "api_format": "openai",
+      "url": "https://api.openai.com/v1/chat/completions",
+      "api_key": "sk-...",
+      "model": "gpt-4o"
+    },
+    "openrouter": {
+      "api_format": "openai",
+      "url": "https://openrouter.ai/api/v1/chat/completions",
+      "api_key": "sk-or-...",
+      "model": "anthropic/claude-sonnet-4"
+    },
+    "ollama": {
+      "api_format": "openai",
+      "url": "http://localhost:11434/v1/chat/completions",
+      "api_key": "ollama",
+      "model": "llama3"
+    }
+  }
+}

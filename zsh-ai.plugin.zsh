@@ -8,10 +8,10 @@
 #
 # Quick operations configuration:
 #   ZSH_AI_BACKEND         - "claude" (default) / "codex" / "opencode" / "api"
-#   ZSH_AI_MODEL           - model name (optional, backend-specific)
-#   ZSH_AI_API_URL         - API endpoint (required when ZSH_AI_BACKEND="api")
-#   ZSH_AI_API_KEY         - API key (required when ZSH_AI_BACKEND="api")
-#   ZSH_AI_API_MODEL       - model for API calls (required when ZSH_AI_BACKEND="api")
+#   ZSH_AI_MODEL           - model name (optional, for CLI backends)
+#   ZSH_AI_CONFIG           - API config file path (default: $XDG_CONFIG_HOME/zsh-ai/config.json)
+#   ZSH_AI_API_PROFILE      - API profile name (default: config's "default" field)
+#   ZSH_AI_API_URL/KEY/MODEL - override config profile values
 
 local _zsh_ai_dir="${0:A:h}"
 

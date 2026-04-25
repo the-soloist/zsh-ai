@@ -77,13 +77,65 @@ When `ZSH_AI_BYPASS` is set to `"false"`, `--dangerously-skip-permissions` is no
 # AI backend: "claude" (default) / "codex" / "opencode" / "api"
 export ZSH_AI_BACKEND="claude"
 
-# Model (optional, backend-specific)
+# Model (optional, for CLI backends)
 export ZSH_AI_MODEL="sonnet"
+```
 
-# Native API mode (when ZSH_AI_BACKEND="api")
-export ZSH_AI_API_URL="https://api.anthropic.com/v1/messages"
-export ZSH_AI_API_KEY="sk-ant-..."
-export ZSH_AI_API_MODEL="claude-sonnet-4-20250514"
+#### API Backend
+
+When `ZSH_AI_BACKEND="api"`, configuration is loaded from a JSON config file:
+
+```sh
+# Config file path (default: $XDG_CONFIG_HOME/zsh-ai/config.json)
+# export ZSH_AI_CONFIG="$XDG_CONFIG_HOME/zsh-ai/config.json"
+
+# Select profile (default: config's "default" field)
+# export ZSH_AI_API_PROFILE="anthropic"
+```
+
+Create the config file from the template:
+
+```sh
+mkdir -p ${XDG_CONFIG_HOME:-~/.config}/zsh-ai
+cp ${ZSH_CUSTOM}/plugins/zsh-ai/config.example.json ${XDG_CONFIG_HOME:-~/.config}/zsh-ai/config.json
+```
+
+Config file supports multiple profiles with two API formats:
+
+```json
+{
+  "default": "anthropic",
+  "profiles": {
+    "anthropic": {
+      "api_format": "anthropic",
+      "url": "https://api.anthropic.com/v1/messages",
+      "api_key": "sk-ant-...",
+      "model": "claude-sonnet-4-20250514"
+    },
+    "openai": {
+      "api_format": "openai",
+      "url": "https://api.openai.com/v1/chat/completions",
+      "api_key": "sk-...",
+      "model": "gpt-4o"
+    }
+  }
+}
+```
+
+- `api_format: "anthropic"` — Anthropic API (x-api-key, content array response)
+- `api_format: "openai"` — OpenAI-compatible API (Bearer token, choices array response). Works with OpenRouter, Ollama, etc.
+
+Environment variables override config profile values when set:
+
+```sh
+# Override API endpoint
+# export ZSH_AI_API_URL="https://api.anthropic.com/v1/messages"
+
+# Override API key
+# export ZSH_AI_API_KEY="sk-ant-..."
+
+# Override model
+# export ZSH_AI_API_MODEL="claude-sonnet-4-20250514"
 ```
 
 ### Commands
