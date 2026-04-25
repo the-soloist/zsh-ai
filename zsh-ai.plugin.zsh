@@ -28,9 +28,14 @@ if [[ "$ZSH_AI_SKIP_DEFAULTS" != "true" ]]; then
   _zsh_ai_mk_alias cl           "claude${bypass}"
   _zsh_ai_mk_alias clr          "claude${bypass} --resume"
   _zsh_ai_mk_alias clc          "claude${bypass} --continue"
+
   _zsh_ai_mk_alias codex        "codex"
   _zsh_ai_mk_alias co           "codex"
   _zsh_ai_mk_alias cor          "codex resume"
+
+  _zsh_ai_mk_alias opencode     "opencode"
+  _zsh_ai_mk_alias oc           "opencode"
+  _zsh_ai_mk_alias occ          "opencode --continue"
 fi
 
 # User custom aliases (add or override)
