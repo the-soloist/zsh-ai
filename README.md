@@ -39,15 +39,32 @@ export ZSH_AI_BYPASS="true"
 
 ## Default Aliases
 
+### Claude
+
 | Alias | Command |
 |-------|---------|
 | `claude` | `claude --dangerously-skip-permissions` |
-| `cr` | `claude --dangerously-skip-permissions --resume` |
-| `cc` | `claude --dangerously-skip-permissions --continue` |
 | `claude-safe` | `claude` |
-| `codex` | `codex` |
-| `or` | `codex resume` |
+| `cl` | `claude --dangerously-skip-permissions` |
+| `clr` | `claude --dangerously-skip-permissions --resume` |
+| `clc` | `claude --dangerously-skip-permissions --continue` |
 
-When `ZSH_AI_PROXY` is set (e.g., `px`), all commands are prefixed with the proxy command.
+### Codex
+
+| Alias | Command |
+|-------|---------|
+| `codex` | `codex` |
+| `co` | `codex` |
+| `cor` | `codex resume` |
+
+### OpenCode
+
+| Alias | Command |
+|-------|---------|
+| `opencode` | `opencode` |
+| `oc` | `opencode` |
+| `occ` | `opencode --continue` |
+
+When `ZSH_AI_PROXY` is set, all commands are prefixed with the proxy command.
 
 When `ZSH_AI_BYPASS` is set to `"false"`, `--dangerously-skip-permissions` is not injected.
