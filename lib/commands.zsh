@@ -6,63 +6,10 @@ _zsh_ai_precmd() {
 autoload -Uz add-zsh-hook
 add-zsh-hook precmd _zsh_ai_precmd
 
-# colors
-_ZSH_AI_C_RESET=$'\033[0m'
-_ZSH_AI_C_CYAN=$'\033[36m'
-_ZSH_AI_C_GREEN=$'\033[32m'
-_ZSH_AI_C_YELLOW=$'\033[33m'
-_ZSH_AI_C_RED=$'\033[31m'
-_ZSH_AI_C_MAGENTA=$'\033[35m'
-_ZSH_AI_C_DIM=$'\033[2m'
-_ZSH_AI_C_BOLD=$'\033[1m'
-
-_zsh_ai_thinking() {
-  echo "${_ZSH_AI_C_BOLD}${_ZSH_AI_C_MAGENTA}$1${_ZSH_AI_C_RESET}" >&2
-}
-
-_zsh_ai_log() {
-  echo "${_ZSH_AI_C_CYAN}$1${_ZSH_AI_C_RESET}" >&2
-}
-
-_zsh_ai_warn() {
-  echo "${_ZSH_AI_C_YELLOW}$1${_ZSH_AI_C_RESET}" >&2
-}
-
-_zsh_ai_err() {
-  echo "${_ZSH_AI_C_RED}$1${_ZSH_AI_C_RESET}" >&2
-}
-
-_zsh_ai_sanitize() {
-  # strip ANSI escape sequences, carriage returns, and control chars (keep newline/tab)
-  command sed $'s/\033\[[0-9;]*[a-zA-Z]//g; s/\r//g' | command tr -d $'\001-\010\013\014\016-\037'
-}
-
-_zsh_ai_cmd_display() {
-  local cmd="$1"
-  if [[ $(echo "$cmd" | wc -l) -gt 1 ]]; then
-    _zsh_ai_log "(multi-line command)"
-    echo "${_ZSH_AI_C_DIM}---${_ZSH_AI_C_RESET}" >&2
-    echo "$cmd" | while IFS= read -r _line; do
-      echo "${_ZSH_AI_C_GREEN}>${_ZSH_AI_C_RESET} ${_ZSH_AI_C_BOLD}$_line${_ZSH_AI_C_RESET}" >&2
-    done
-    echo "${_ZSH_AI_C_DIM}---${_ZSH_AI_C_RESET}" >&2
-  else
-    echo "${_ZSH_AI_C_GREEN}>${_ZSH_AI_C_RESET} ${_ZSH_AI_C_BOLD}$cmd${_ZSH_AI_C_RESET}" >&2
-  fi
-}
-
-_zsh_ai_warn_dangerous() {
-  local cmd="$1"
-  local patterns='rm -rf|mkfs|dd if=|> /dev/|chmod -R 777|:(){ :|:& };:|shutdown|reboot|halt|kill -9 -1'
-  if [[ "$cmd" =~ ($~patterns) ]]; then
-    _zsh_ai_warn "WARNING: potentially destructive command detected"
-    return 0
-  fi
-  return 1
-}
-
 _zsh_ai_confirm() {
   local cmd="$1"
+  local fix_retries=0
+  local max_fix_retries=3
 
   while true; do
     echo "" >&2
@@ -74,8 +21,36 @@ _zsh_ai_confirm() {
     read "choice?Execute? ${_ZSH_AI_C_DIM}[Y]es / [E]dit / [R]evise / [C]ancel:${_ZSH_AI_C_RESET} "
     case "$choice" in
       y|Y|"")
-        eval "$cmd"
-        return
+        local output exit_code
+        output=$(eval "$cmd" 2>&1)
+        exit_code=$?
+        [[ -n "$output" ]] && echo "$output" >&2
+
+        if [[ $exit_code -ne 0 ]] && [[ "${ZSH_AI_AUTO_FIX:-true}" == "true" ]] && (( fix_retries < max_fix_retries )); then
+          ((fix_retries++))
+          _zsh_ai_warn "Command failed (exit $exit_code). Auto-fixing ($fix_retries/$max_fix_retries)..."
+          local fix_prompt="You are a shell command fixer. The user's shell is zsh on macOS.
+The following command failed with exit code $exit_code:
+
+$cmd
+
+Command output:
+$output
+
+Analyze the cause and provide the corrected command. Output ONLY the corrected command, no explanation, no markdown formatting."
+          _zsh_ai_thinking "Fixing..."
+          cmd=$(_zsh_ai_query "$fix_prompt")
+          if [[ -z "$cmd" ]]; then
+            _zsh_ai_err "No fix suggestion from AI backend."
+            return $exit_code
+          fi
+          cmd=$(echo "$cmd" | _zsh_ai_sanitize)
+          continue
+        fi
+        if [[ $exit_code -ne 0 ]] && (( fix_retries >= max_fix_retries )); then
+          _zsh_ai_err "Auto-fix failed after $max_fix_retries attempts."
+        fi
+        return $exit_code
         ;;
       e|E)
         print -z "$cmd"
@@ -142,147 +117,6 @@ Task: ${args[*]}"
 
   cmd=$(echo "$cmd" | _zsh_ai_sanitize)
   _zsh_ai_confirm "$cmd"
-}
-
-ask-agent() {
-  local verbose=0
-  local max_steps=20
-  local -a args
-  for arg in "$@"; do
-    case "$arg" in
-      -v|--verbose) verbose=1 ;;
-      *) args+=("$arg") ;;
-    esac
-  done
-
-  if [[ ${#args[@]} -eq 0 ]]; then
-    _zsh_ai_warn "usage: ask-agent [-v] <task description>"
-    return 1
-  fi
-
-  local task="${args[*]}"
-  local -a history
-  local step=0
-  local auto_approve=0
-
-  _zsh_ai_log "Task: $task"
-
-  while (( step < max_steps )); do
-    ((step++))
-
-    local context=""
-    if [[ ${#history[@]} -gt 0 ]]; then
-      context="Previous steps:
-$(printf '%s\n' "${history[@]}")
-
-"
-    fi
-
-    local prompt="You are a shell automation agent. The user's shell is zsh on macOS.
-Your task: $task
-
-${context}Based on the task and any previous results, decide what to do next.
-
-Rules:
-- If the task is complete, output exactly: [DONE]
-- If the task cannot be completed, output exactly: [FAILED] reason
-- Otherwise, output ONLY the next shell command to run, no explanation, no markdown formatting."
-
-    echo "" >&2
-    _zsh_ai_thinking "[Step $step] Thinking..."
-    local cmd
-    cmd=$(_zsh_ai_query "$prompt" "$verbose")
-
-    if [[ -z "$cmd" ]]; then
-      _zsh_ai_err "No result from AI backend."
-      return 1
-    fi
-
-    cmd=$(echo "$cmd" | _zsh_ai_sanitize)
-
-    if [[ "$cmd" == "[DONE]"* ]]; then
-      echo "" >&2
-      _zsh_ai_log "Task completed."
-      return 0
-    fi
-    if [[ "$cmd" == "[FAILED]"* ]]; then
-      echo "" >&2
-      _zsh_ai_err "$cmd"
-      return 1
-    fi
-
-    echo "" >&2
-    _zsh_ai_cmd_display "$cmd"
-    local is_dangerous=1
-    _zsh_ai_warn_dangerous "$cmd" && is_dangerous=0
-    echo "" >&2
-
-    local output="" exit_code=0
-
-    if (( auto_approve )) && (( is_dangerous )); then
-      output=$(eval "$cmd" 2>&1)
-      exit_code=$?
-      [[ -n "$output" ]] && echo "$output" >&2
-    else
-      if (( auto_approve )) && ! (( is_dangerous )); then
-        _zsh_ai_warn "Auto-approve paused: dangerous command requires confirmation."
-      fi
-      local choice
-      read "choice?${_ZSH_AI_C_DIM}[Y]es / [E]dit / [R]evise / [S]kip / [A]uto / [C]ancel:${_ZSH_AI_C_RESET} "
-
-      case "$choice" in
-        y|Y|"")
-          output=$(eval "$cmd" 2>&1)
-          exit_code=$?
-          [[ -n "$output" ]] && echo "$output" >&2
-          ;;
-        e|E)
-          local edited="$cmd"
-          vared edited
-          edited=$(echo "$edited" | _zsh_ai_sanitize)
-          output=$(eval "$edited" 2>&1)
-          exit_code=$?
-          cmd="$edited"
-          [[ -n "$output" ]] && echo "$output" >&2
-          ;;
-        r|R)
-          local feedback
-          read "feedback?${_ZSH_AI_C_DIM}Revise:${_ZSH_AI_C_RESET} "
-          if [[ -n "$feedback" ]]; then
-            history+=("[Step $step] AI suggested: $cmd | User feedback: $feedback")
-          fi
-          continue
-          ;;
-        s|S)
-          history+=("[Step $step] Command: $cmd | Result: SKIPPED")
-          continue
-          ;;
-        a|A)
-          auto_approve=1
-          output=$(eval "$cmd" 2>&1)
-          exit_code=$?
-          [[ -n "$output" ]] && echo "$output" >&2
-          ;;
-        *)
-          _zsh_ai_log "Cancelled."
-          return 0
-          ;;
-      esac
-    fi
-
-    local truncated="$output"
-    if [[ $(echo "$output" | wc -l) -gt 50 ]]; then
-      truncated="$(echo "$output" | head -20)
-... (truncated) ...
-$(echo "$output" | tail -20)"
-    fi
-
-    history+=("[Step $step] Command: $cmd | Exit: $exit_code | Output:
-$truncated")
-  done
-
-  _zsh_ai_err "Reached max steps ($max_steps)."
-  return 1
 }
 
 fix() {

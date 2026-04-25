@@ -16,21 +16,47 @@ Add `zsh-ai` to plugins in `.zshrc`:
 plugins=(... zsh-ai)
 ```
 
-## Configuration
+## Environment Variables
 
-Set before plugins are loaded in `.zshrc`:
+All variables are set in `.zshrc` before plugins are loaded.
+
+### Aliases
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ZSH_AI_PROXY` | `""` | Proxy command prefix (e.g., `proxychains4`, `proxychains4 -q`) |
+| `ZSH_AI_BYPASS` | `"false"` | Auto-inject `--dangerously-skip-permissions` into claude aliases |
+| `ZSH_AI_SKIP_DEFAULTS` | unset | Set to `"true"` to skip all default aliases |
+| `ZSH_AI_ALIASES` | unset | Associative array of extra/override aliases |
+
+### Quick Operations
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ZSH_AI_BACKEND` | `"claude"` | AI backend: `claude` / `codex` / `opencode` / `api` |
+| `ZSH_AI_MODEL` | `""` | Model name for CLI backends (e.g., `haiku`, `sonnet`) |
+| `ZSH_AI_AUTO_FIX` | `"true"` | Auto-fix failed commands in `ask` |
+
+### API Backend
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ZSH_AI_CONFIG` | `$ZDOTDIR/zsh-ai/config.json` | API config file path |
+| `ZSH_AI_API_PROFILE` | config's `default` field | API profile name |
+| `ZSH_AI_API_URL` | from profile | Override API endpoint |
+| `ZSH_AI_API_KEY` | from profile | Override API key |
+| `ZSH_AI_API_MODEL` | from profile | Override model |
+
+## Configuration Example
 
 ```sh
-# Proxy command prefix (optional)
+# @ zsh-ai
 export ZSH_AI_PROXY="proxychains4"
-
-# Auto-inject --dangerously-skip-permissions for claude (default: "false")
 export ZSH_AI_BYPASS="true"
+export ZSH_AI_BACKEND="claude"
+export ZSH_AI_MODEL="haiku"
 
-# Skip all default aliases (default: unset)
-# export ZSH_AI_SKIP_DEFAULTS="true"
-
-# Custom aliases (optional, add or override defaults)
+# Custom aliases (optional)
 # typeset -gA ZSH_AI_ALIASES=(
 #   aider  "aider"
 #   gemini "gemini"
@@ -67,37 +93,79 @@ export ZSH_AI_BYPASS="true"
 
 When `ZSH_AI_PROXY` is set, all commands are prefixed with the proxy command.
 
-Set `ZSH_AI_BYPASS="true"` to auto-inject `--dangerously-skip-permissions` into claude aliases (default: `false`).
+Claude aliases include `--dangerously-skip-permissions` only when `ZSH_AI_BYPASS="true"`.
 
 ## Quick Operations
 
-### Configuration
+### `ask <description>`
+
+Translate natural language to a shell command, then confirm before executing. If the command fails, auto-fix is triggered (controlled by `ZSH_AI_AUTO_FIX`).
 
 ```sh
-# AI backend: "claude" (default) / "codex" / "opencode" / "api"
-export ZSH_AI_BACKEND="claude"
-
-# Model (optional, for CLI backends)
-export ZSH_AI_MODEL="haiku"
+ask "find all files larger than 100MB"
+# > find . -type f -size +100M
+# Execute? [Y]es / [E]dit / [R]evise / [C]ancel:
 ```
 
-#### API Backend
+- `Y` — execute directly (auto-fix if failed)
+- `E` — load command into the edit buffer for modification
+- `R` — describe how to modify, AI will revise the command
+- `C` — cancel
 
-When `ZSH_AI_BACKEND="api"`, configuration is loaded from a JSON config file:
+Use `-v` for verbose AI output.
+
+### `ask-agent <task>`
+
+Multi-step agent loop. AI generates commands based on previous results until the task is complete.
 
 ```sh
-# Config file path (default: $ZDOTDIR/zsh-ai/config.json)
-# export ZSH_AI_CONFIG="$ZDOTDIR/zsh-ai/config.json"
-
-# Select profile (default: config's "default" field)
-# export ZSH_AI_API_PROFILE="anthropic"
+ask-agent "find all python files with TODO comments and list them"
+# Task: find all python files with TODO comments and list them
+#
+# [Step 1] Thinking...
+# > find . -name "*.py" -exec grep -l "TODO" {} +
+# [Y]es / [E]dit / [R]evise / [S]kip / [A]uto / [C]ancel: y
+# ./src/main.py
+# ./lib/utils.py
+#
+# [Step 2] Thinking...
+# Task completed.
 ```
+
+- `Y` — execute command, feed output to AI for next step
+- `E` — edit command inline before executing
+- `R` — describe revision, AI regenerates without executing
+- `S` — skip this step, continue to next
+- `A` — auto-approve all subsequent commands (pauses on dangerous commands)
+- `C` — cancel
+
+Max 20 steps per session. Use `-v` for verbose AI output.
+
+### `fix`
+
+Send the last failed command to AI for a corrected version.
+
+```sh
+$ grep -r "pattern" --incldue="*.py" .
+grep: unrecognized option '--incldue=*.py'
+
+$ fix
+# Analyzing: grep -r "pattern" --incldue="*.py" . (exit 2)...
+# > grep -r "pattern" --include="*.py" .
+# Execute? [Y]es / [E]dit / [R]evise / [C]ancel:
+```
+
+Use `-v` for verbose AI output.
+
+## API Backend Setup
+
+When `ZSH_AI_BACKEND="api"`, configuration is loaded from a JSON config file.
 
 Create the config file from the template:
 
 ```sh
 export ZSH_AI_CONFIG=${ZDOTDIR:-~/.config/zsh}/zsh-ai/config.json
-mkdir -p `dirname ${ZSH_AI_CONFIG}`
+mkdir -p $(dirname ${ZSH_AI_CONFIG})
 cp ${ZSH_CUSTOM}/plugins/zsh-ai/config.example.json ${ZSH_AI_CONFIG}
 ```
 
@@ -126,77 +194,7 @@ Config file supports multiple profiles with two API formats:
 - `api_format: "anthropic"` — Anthropic API (x-api-key, content array response)
 - `api_format: "openai"` — OpenAI-compatible API (Bearer token, choices array response). Works with OpenRouter, Ollama, etc.
 
-Environment variables override config profile values when set:
-
-```sh
-# Override API endpoint
-# export ZSH_AI_API_URL="https://api.anthropic.com/v1/messages"
-
-# Override API key
-# export ZSH_AI_API_KEY="sk-ant-..."
-
-# Override model
-# export ZSH_AI_API_MODEL="claude-sonnet-4-20250514"
-```
-
-### Commands
-
-#### `ask <description>`
-
-Translate natural language to a shell command, then confirm before executing.
-
-```sh
-ask "find all files larger than 100MB"
-#   find . -type f -size +10M
-# Execute? [Y]es / [E]dit / [R]evise / [C]ancel:
-```
-
-- `Y` — execute directly
-- `E` — load command into the edit buffer for modification
-- `R` — describe how to modify, AI will revise the command
-- `C` — cancel
-
-#### `ask-agent <task>`
-
-Multi-step agent loop. AI generates commands based on previous results until the task is complete.
-
-```sh
-ask-agent "find all python files with TODO comments and list them"
-# [OUTPUT] Task: find all python files with TODO comments and list them
-#
-# [OUTPUT] [Step 1] Thinking...
-#   find . -name "*.py" -exec grep -l "TODO" {} +
-# [Y]es / [E]dit / [R]evise / [S]kip / [C]ancel: y
-# ./src/main.py
-# ./lib/utils.py
-#
-# [OUTPUT] [Step 2] Thinking...
-# [OUTPUT] Task completed.
-```
-
-- `Y` — execute command, feed output to AI for next step
-- `E` — edit command inline before executing
-- `R` — describe revision, AI regenerates without executing
-- `S` — skip this step, continue to next
-- `C` — cancel
-
-Max 20 steps per session. Use `-v` for verbose AI output.
-
-#### `fix`
-
-Send the last failed command to AI for a corrected version.
-
-```sh
-$ grep -r "pattern" --incldue="*.py" .
-grep: unrecognized option '--incldue=*.py'
-
-$ fix
-# Analyzing: grep -r "pattern" --incldue="*.py" . (exit 2)...
-#   grep -r "pattern" --include="*.py" .
-# Execute? [Y]es / [E]dit / [R]evise / [C]ancel:
-```
-
-### Backend Details
+## Backend Details
 
 | Backend | One-shot command | No persistence |
 |---------|-----------------|----------------|
