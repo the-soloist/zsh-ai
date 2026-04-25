@@ -1,6 +1,6 @@
 local proxy="${ZSH_AI_PROXY:-}"
 local bypass=""
-if [[ "${ZSH_AI_BYPASS:-true}" == "true" ]]; then
+if [[ "${ZSH_AI_BYPASS:-false}" == "true" ]]; then
   bypass=" --dangerously-skip-permissions"
 fi
 

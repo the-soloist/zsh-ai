@@ -20,7 +20,7 @@ _zsh_ai_load_api_profile() {
   fi
 
   local profile_data
-  profile_data=$(jq -e ".profiles[\"$profile\"]" "$config_file" 2>/dev/null)
+  profile_data=$(jq -e --arg profile "$profile" '.profiles[$profile]' "$config_file" 2>/dev/null)
   if [[ $? -ne 0 ]]; then
     echo "zsh-ai: profile '$profile' not found in config" >&2
     return 1
@@ -30,6 +30,19 @@ _zsh_ai_load_api_profile() {
   _ZSH_AI_API_URL="${ZSH_AI_API_URL:-$(echo "$profile_data" | jq -r '.url')}"
   _ZSH_AI_API_KEY="${ZSH_AI_API_KEY:-$(echo "$profile_data" | jq -r '.api_key')}"
   _ZSH_AI_API_MODEL="${ZSH_AI_API_MODEL:-$(echo "$profile_data" | jq -r '.model')}"
+
+  if [[ -z "$_ZSH_AI_API_URL" || "$_ZSH_AI_API_URL" == "null" ]]; then
+    echo "zsh-ai: profile '$profile' missing 'url'" >&2
+    return 1
+  fi
+  if [[ -z "$_ZSH_AI_API_KEY" || "$_ZSH_AI_API_KEY" == "null" ]]; then
+    echo "zsh-ai: profile '$profile' missing 'api_key'" >&2
+    return 1
+  fi
+  if [[ -z "$_ZSH_AI_API_MODEL" || "$_ZSH_AI_API_MODEL" == "null" ]]; then
+    echo "zsh-ai: profile '$profile' missing 'model'" >&2
+    return 1
+  fi
 }
 
 _zsh_ai_api_anthropic() {
@@ -98,7 +111,9 @@ _zsh_ai_run_cli() {
 
   if [[ "$verbose" == "1" ]]; then
     local tmpfile=$(mktemp)
+    echo "[OUTPUT]" >&2
     "${cmd_args[@]}" 2>/dev/null | tee "$tmpfile" >&2
+    echo "[/OUTPUT]" >&2
     cat "$tmpfile"
     rm -f "$tmpfile"
   else
@@ -116,7 +131,7 @@ _zsh_ai_query() {
 
   local -a cmd_args
   local -a proxy_prefix
-  [[ -n "$px" ]] && proxy_prefix=("$px")
+  [[ -n "$px" ]] && proxy_prefix=(${=px})
 
   case "$backend" in
     claude)
@@ -141,8 +156,10 @@ _zsh_ai_query() {
       _zsh_ai_load_api_profile || return 1
       if [[ "$verbose" == "1" ]]; then
         local tmpfile=$(mktemp)
+        echo "[OUTPUT]" >&2
         _zsh_ai_api_stream "$_ZSH_AI_API_FORMAT" "$prompt" "$_ZSH_AI_API_URL" "$_ZSH_AI_API_KEY" "$_ZSH_AI_API_MODEL" \
           | tee "$tmpfile" >&2
+        echo "[/OUTPUT]" >&2
         result=$(cat "$tmpfile")
         rm -f "$tmpfile"
       else
@@ -152,6 +169,10 @@ _zsh_ai_query() {
             ;;
           openai)
             result=$(_zsh_ai_api_openai "$prompt" "$_ZSH_AI_API_URL" "$_ZSH_AI_API_KEY" "$_ZSH_AI_API_MODEL")
+            ;;
+          *)
+            echo "zsh-ai: unsupported api_format '$_ZSH_AI_API_FORMAT'" >&2
+            return 1
             ;;
         esac
       fi

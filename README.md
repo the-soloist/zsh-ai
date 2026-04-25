@@ -24,7 +24,7 @@ Set before plugins are loaded in `.zshrc`:
 # Proxy command prefix (optional)
 export ZSH_AI_PROXY="proxychains4"
 
-# Auto-inject --dangerously-skip-permissions for claude (default: "true")
+# Auto-inject --dangerously-skip-permissions for claude (default: "false")
 export ZSH_AI_BYPASS="true"
 
 # Skip all default aliases (default: unset)
@@ -67,7 +67,7 @@ export ZSH_AI_BYPASS="true"
 
 When `ZSH_AI_PROXY` is set, all commands are prefixed with the proxy command.
 
-When `ZSH_AI_BYPASS` is set to `"false"`, `--dangerously-skip-permissions` is not injected.
+Set `ZSH_AI_BYPASS="true"` to auto-inject `--dangerously-skip-permissions` into claude aliases (default: `false`).
 
 ## Quick Operations
 
@@ -155,6 +155,32 @@ ask "find all files larger than 100MB"
 - `E` — load command into the edit buffer for modification
 - `R` — describe how to modify, AI will revise the command
 - `C` — cancel
+
+#### `ask-agent <task>`
+
+Multi-step agent loop. AI generates commands based on previous results until the task is complete.
+
+```sh
+ask-agent "find all python files with TODO comments and list them"
+# [OUTPUT] Task: find all python files with TODO comments and list them
+#
+# [OUTPUT] [Step 1] Thinking...
+#   find . -name "*.py" -exec grep -l "TODO" {} +
+# [Y]es / [E]dit / [R]evise / [S]kip / [C]ancel: y
+# ./src/main.py
+# ./lib/utils.py
+#
+# [OUTPUT] [Step 2] Thinking...
+# [OUTPUT] Task completed.
+```
+
+- `Y` — execute command, feed output to AI for next step
+- `E` — edit command inline before executing
+- `R` — describe revision, AI regenerates without executing
+- `S` — skip this step, continue to next
+- `C` — cancel
+
+Max 20 steps per session. Use `-v` for verbose AI output.
 
 #### `fix`
 
