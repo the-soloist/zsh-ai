@@ -96,8 +96,9 @@ When `ZSH_AI_BACKEND="api"`, configuration is loaded from a JSON config file:
 Create the config file from the template:
 
 ```sh
-mkdir -p ${ZDOTDIR:-~/.config/zsh}/zsh-ai
-cp ${ZSH_CUSTOM}/plugins/zsh-ai/config.example.json ${ZDOTDIR:-~/.config/zsh}/zsh-ai/config.json
+export ZSH_AI_CONFIG=${ZDOTDIR:-~/.config/zsh}/zsh-ai/config.json
+mkdir -p `dirname ${ZSH_AI_CONFIG}`
+cp ${ZSH_CUSTOM}/plugins/zsh-ai/config.example.json ${ZSH_AI_CONFIG}
 ```
 
 Config file supports multiple profiles with two API formats:
