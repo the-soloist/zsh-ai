@@ -38,8 +38,8 @@ Your task: $task
 ${context}Based on the task and any previous results, decide what to do next.
 
 Rules:
-- If the task is complete, output exactly: [DONE]
-- If the task cannot be completed, output exactly: [FAILED] reason
+- If the task is complete, output: [DONE] followed by a brief conclusion summarizing what was accomplished and key results
+- If the task cannot be completed, output: [FAILED] followed by the reason
 - Otherwise, output ONLY the next shell command to run, no explanation, no markdown formatting."
 
     echo "" >&2
@@ -57,11 +57,19 @@ Rules:
     if [[ "$cmd" == "[DONE]"* ]]; then
       echo "" >&2
       _zsh_ai_log "Task completed."
+      local conclusion="${cmd#\[DONE\]}"
+      conclusion="${conclusion#"${conclusion%%[![:space:]]*}"}"
+      if [[ -n "$conclusion" ]]; then
+        echo "" >&2
+        _zsh_ai_log "$conclusion"
+      fi
       return 0
     fi
     if [[ "$cmd" == "[FAILED]"* ]]; then
       echo "" >&2
-      _zsh_ai_err "$cmd"
+      local reason="${cmd#\[FAILED\]}"
+      reason="${reason#"${reason%%[![:space:]]*}"}"
+      _zsh_ai_err "Task failed.${reason:+ $reason}"
       return 1
     fi
 
