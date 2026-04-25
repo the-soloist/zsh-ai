@@ -56,19 +56,28 @@ Output ONLY the revised command, no explanation, no markdown formatting."
 }
 
 ask() {
-  if [[ -z "$*" ]]; then
-    echo "usage: ask <natural language description>" >&2
+  local verbose=0
+  local -a args
+  for arg in "$@"; do
+    case "$arg" in
+      -v|--verbose) verbose=1 ;;
+      *) args+=("$arg") ;;
+    esac
+  done
+
+  if [[ ${#args[@]} -eq 0 ]]; then
+    echo "usage: ask [-v] <natural language description>" >&2
     return 1
   fi
 
   local prompt="You are a shell command generator. The user's shell is zsh on macOS.
 Generate a shell command for the following task. Output ONLY the command itself, no explanation, no markdown formatting.
 
-Task: $*"
+Task: ${args[*]}"
 
   echo "Thinking..." >&2
   local cmd
-  cmd=$(_zsh_ai_query "$prompt")
+  cmd=$(_zsh_ai_query "$prompt" "$verbose")
   if [[ -z "$cmd" ]]; then
     echo "No result from AI backend." >&2
     return 1
@@ -78,6 +87,9 @@ Task: $*"
 }
 
 fix() {
+  local verbose=0
+  [[ "$1" == "-v" || "$1" == "--verbose" ]] && verbose=1
+
   local last_cmd=$(fc -ln -1 | command sed 's/^[[:space:]]*//')
   local exit_code=$_ZSH_AI_LAST_EXIT_CODE
 
@@ -95,7 +107,7 @@ Analyze the likely cause and provide the corrected command. Output ONLY the corr
 
   echo "Analyzing: $last_cmd (exit $exit_code)..." >&2
   local cmd
-  cmd=$(_zsh_ai_query "$prompt")
+  cmd=$(_zsh_ai_query "$prompt" "$verbose")
   if [[ -z "$cmd" ]]; then
     echo "No result from AI backend." >&2
     return 1

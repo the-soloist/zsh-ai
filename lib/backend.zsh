@@ -26,7 +26,6 @@ _zsh_ai_load_api_profile() {
     return 1
   fi
 
-  # env vars override config values
   _ZSH_AI_API_FORMAT=$(echo "$profile_data" | jq -r '.api_format // "anthropic"')
   _ZSH_AI_API_URL="${ZSH_AI_API_URL:-$(echo "$profile_data" | jq -r '.url')}"
   _ZSH_AI_API_KEY="${ZSH_AI_API_KEY:-$(echo "$profile_data" | jq -r '.api_key')}"
@@ -62,8 +61,54 @@ _zsh_ai_api_openai() {
     | jq -r '.choices[0].message.content'
 }
 
+_zsh_ai_api_stream() {
+  local format="$1" prompt="$2" url="$3" key="$4" model="$5"
+  local payload jq_filter
+
+  local -a curl_args=(curl -sS --no-buffer "$url" -H "Content-Type: application/json")
+  if [[ "$format" == "anthropic" ]]; then
+    payload=$(jq -nc \
+      --arg model "$model" \
+      --arg content "$prompt" \
+      '{model: $model, max_tokens: 1024, stream: true, messages: [{role: "user", content: $content}]}')
+    curl_args+=(-H "x-api-key: $key" -H "anthropic-version: 2023-06-01")
+    jq_filter='select(.type == "content_block_delta") | .delta.text // empty'
+  else
+    payload=$(jq -nc \
+      --arg model "$model" \
+      --arg content "$prompt" \
+      '{model: $model, stream: true, messages: [{role: "user", content: $content}]}')
+    curl_args+=(-H "Authorization: Bearer $key")
+    jq_filter='.choices[0].delta.content // empty'
+  fi
+  curl_args+=(-d "$payload")
+
+  "${curl_args[@]}" 2>/dev/null \
+    | grep --line-buffered '^data: ' \
+    | command sed 's/^data: //' \
+    | grep --line-buffered -v '^\[DONE\]' \
+    | jq -rj --unbuffered "$jq_filter"
+  echo
+}
+
+_zsh_ai_run_cli() {
+  local verbose="$1"
+  shift
+  local -a cmd_args=("$@")
+
+  if [[ "$verbose" == "1" ]]; then
+    local tmpfile=$(mktemp)
+    "${cmd_args[@]}" 2>/dev/null | tee "$tmpfile" >&2
+    cat "$tmpfile"
+    rm -f "$tmpfile"
+  else
+    "${cmd_args[@]}" 2>/dev/null
+  fi
+}
+
 _zsh_ai_query() {
   local prompt="$1"
+  local verbose="${2:-0}"
   local backend="${ZSH_AI_BACKEND:-claude}"
   local model="${ZSH_AI_MODEL:-}"
   local px="${ZSH_AI_PROXY:-}"
@@ -75,37 +120,41 @@ _zsh_ai_query() {
 
   case "$backend" in
     claude)
-      cmd_args=(claude -p --no-session-persistence)
+      cmd_args=("${proxy_prefix[@]}" claude -p --no-session-persistence)
       [[ -n "$model" ]] && cmd_args+=(--model "$model")
       cmd_args+=("$prompt")
-      result=$("${proxy_prefix[@]}" "${cmd_args[@]}" 2>/dev/null)
+      result=$(_zsh_ai_run_cli "$verbose" "${cmd_args[@]}")
       ;;
     codex)
-      cmd_args=(codex exec --ephemeral)
+      cmd_args=("${proxy_prefix[@]}" codex exec --ephemeral)
       [[ -n "$model" ]] && cmd_args+=(--model "$model")
       cmd_args+=("$prompt")
-      result=$("${proxy_prefix[@]}" "${cmd_args[@]}" 2>/dev/null)
+      result=$(_zsh_ai_run_cli "$verbose" "${cmd_args[@]}")
       ;;
     opencode)
-      cmd_args=(opencode run)
+      cmd_args=("${proxy_prefix[@]}" opencode run)
       [[ -n "$model" ]] && cmd_args+=(--model "$model")
       cmd_args+=("$prompt")
-      result=$("${proxy_prefix[@]}" "${cmd_args[@]}" 2>/dev/null)
+      result=$(_zsh_ai_run_cli "$verbose" "${cmd_args[@]}")
       ;;
     api)
       _zsh_ai_load_api_profile || return 1
-      case "$_ZSH_AI_API_FORMAT" in
-        anthropic)
-          result=$(_zsh_ai_api_anthropic "$prompt" "$_ZSH_AI_API_URL" "$_ZSH_AI_API_KEY" "$_ZSH_AI_API_MODEL")
-          ;;
-        openai)
-          result=$(_zsh_ai_api_openai "$prompt" "$_ZSH_AI_API_URL" "$_ZSH_AI_API_KEY" "$_ZSH_AI_API_MODEL")
-          ;;
-        *)
-          echo "zsh-ai: unknown api_format '$_ZSH_AI_API_FORMAT'" >&2
-          return 1
-          ;;
-      esac
+      if [[ "$verbose" == "1" ]]; then
+        local tmpfile=$(mktemp)
+        _zsh_ai_api_stream "$_ZSH_AI_API_FORMAT" "$prompt" "$_ZSH_AI_API_URL" "$_ZSH_AI_API_KEY" "$_ZSH_AI_API_MODEL" \
+          | tee "$tmpfile" >&2
+        result=$(cat "$tmpfile")
+        rm -f "$tmpfile"
+      else
+        case "$_ZSH_AI_API_FORMAT" in
+          anthropic)
+            result=$(_zsh_ai_api_anthropic "$prompt" "$_ZSH_AI_API_URL" "$_ZSH_AI_API_KEY" "$_ZSH_AI_API_MODEL")
+            ;;
+          openai)
+            result=$(_zsh_ai_api_openai "$prompt" "$_ZSH_AI_API_URL" "$_ZSH_AI_API_KEY" "$_ZSH_AI_API_MODEL")
+            ;;
+        esac
+      fi
       ;;
     *)
       echo "zsh-ai: unknown backend '$backend'" >&2

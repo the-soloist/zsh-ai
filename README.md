@@ -148,13 +148,13 @@ Translate natural language to a shell command, then confirm before executing.
 ```sh
 ask "find all files larger than 100MB"
 #   find . -type f -size +10M
-# Execute? [y]es / [e]dit / [r]evise / [*]cancel:
+# Execute? [Y]es / [E]dit / [R]evise / [C]ancel:
 ```
 
-- `y` — execute directly
-- `e` — load command into the edit buffer for modification
-- `r` — describe how to modify, AI will revise the command
-- other — cancel
+- `Y` — execute directly
+- `E` — load command into the edit buffer for modification
+- `R` — describe how to modify, AI will revise the command
+- `C` — cancel
 
 #### `fix`
 
@@ -167,7 +167,7 @@ grep: unrecognized option '--incldue=*.py'
 $ fix
 # Analyzing: grep -r "pattern" --incldue="*.py" . (exit 2)...
 #   grep -r "pattern" --include="*.py" .
-# Execute? [y]es / [e]dit / [*]cancel:
+# Execute? [Y]es / [E]dit / [R]evise / [C]ancel:
 ```
 
 ### Backend Details
