@@ -17,7 +17,7 @@ _ZSH_AI_C_DIM=$'\033[2m'
 _ZSH_AI_C_BOLD=$'\033[1m'
 
 _zsh_ai_thinking() {
-  echo "${_ZSH_AI_C_BOLD}${_ZSH_AI_C_MAGENTA}⟳ $1${_ZSH_AI_C_RESET}" >&2
+  echo "${_ZSH_AI_C_BOLD}${_ZSH_AI_C_MAGENTA}$1${_ZSH_AI_C_RESET}" >&2
 }
 
 _zsh_ai_log() {
