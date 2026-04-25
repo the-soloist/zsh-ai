@@ -78,7 +78,7 @@ When `ZSH_AI_BYPASS` is set to `"false"`, `--dangerously-skip-permissions` is no
 export ZSH_AI_BACKEND="claude"
 
 # Model (optional, for CLI backends)
-export ZSH_AI_MODEL="sonnet"
+export ZSH_AI_MODEL="haiku"
 ```
 
 #### API Backend
@@ -86,8 +86,8 @@ export ZSH_AI_MODEL="sonnet"
 When `ZSH_AI_BACKEND="api"`, configuration is loaded from a JSON config file:
 
 ```sh
-# Config file path (default: $XDG_CONFIG_HOME/zsh-ai/config.json)
-# export ZSH_AI_CONFIG="$XDG_CONFIG_HOME/zsh-ai/config.json"
+# Config file path (default: $ZDOTDIR/zsh-ai/config.json)
+# export ZSH_AI_CONFIG="$ZDOTDIR/zsh-ai/config.json"
 
 # Select profile (default: config's "default" field)
 # export ZSH_AI_API_PROFILE="anthropic"
@@ -96,8 +96,8 @@ When `ZSH_AI_BACKEND="api"`, configuration is loaded from a JSON config file:
 Create the config file from the template:
 
 ```sh
-mkdir -p ${XDG_CONFIG_HOME:-~/.config}/zsh-ai
-cp ${ZSH_CUSTOM}/plugins/zsh-ai/config.example.json ${XDG_CONFIG_HOME:-~/.config}/zsh-ai/config.json
+mkdir -p ${ZDOTDIR:-~/.config/zsh}/zsh-ai
+cp ${ZSH_CUSTOM}/plugins/zsh-ai/config.example.json ${ZDOTDIR:-~/.config/zsh}/zsh-ai/config.json
 ```
 
 Config file supports multiple profiles with two API formats:
@@ -146,12 +146,13 @@ Translate natural language to a shell command, then confirm before executing.
 
 ```sh
 ask "find all files larger than 100MB"
-#   find . -type f -size +100M
-# Execute? [y]es / [e]dit / [*]cancel:
+#   find . -type f -size +10M
+# Execute? [y]es / [e]dit / [r]evise / [*]cancel:
 ```
 
 - `y` — execute directly
 - `e` — load command into the edit buffer for modification
+- `r` — describe how to modify, AI will revise the command
 - other — cancel
 
 #### `fix`

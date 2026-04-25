@@ -1,9 +1,13 @@
 _zsh_ai_strip_markdown() {
-  command sed -n '/^```/{n; :loop; /^```/q; p; n; b loop}; /^```/!p'
+  local line
+  while IFS= read -r line; do
+    [[ "$line" == '```'* ]] && continue
+    echo "$line"
+  done
 }
 
 _zsh_ai_load_api_profile() {
-  local config_file="${ZSH_AI_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/zsh-ai/config.json}"
+  local config_file="${ZSH_AI_CONFIG:-${ZDOTDIR:-$HOME/.config/zsh}/zsh-ai/config.json}"
   if [[ ! -f "$config_file" ]]; then
     echo "zsh-ai: config file not found: $config_file" >&2
     return 1
@@ -65,18 +69,28 @@ _zsh_ai_query() {
   local px="${ZSH_AI_PROXY:-}"
   local result=""
 
+  local -a cmd_args
+  local -a proxy_prefix
+  [[ -n "$px" ]] && proxy_prefix=("$px")
+
   case "$backend" in
     claude)
-      result=$(${px:+$px} claude -p --no-session-persistence \
-        ${model:+--model "$model"} "$prompt" 2>/dev/null)
+      cmd_args=(claude -p --no-session-persistence)
+      [[ -n "$model" ]] && cmd_args+=(--model "$model")
+      cmd_args+=("$prompt")
+      result=$("${proxy_prefix[@]}" "${cmd_args[@]}" 2>/dev/null)
       ;;
     codex)
-      result=$(${px:+$px} codex exec --ephemeral \
-        ${model:+--model "$model"} "$prompt" 2>/dev/null)
+      cmd_args=(codex exec --ephemeral)
+      [[ -n "$model" ]] && cmd_args+=(--model "$model")
+      cmd_args+=("$prompt")
+      result=$("${proxy_prefix[@]}" "${cmd_args[@]}" 2>/dev/null)
       ;;
     opencode)
-      result=$(${px:+$px} opencode run \
-        ${model:+--model "$model"} "$prompt" 2>/dev/null)
+      cmd_args=(opencode run)
+      [[ -n "$model" ]] && cmd_args+=(--model "$model")
+      cmd_args+=("$prompt")
+      result=$("${proxy_prefix[@]}" "${cmd_args[@]}" 2>/dev/null)
       ;;
     api)
       _zsh_ai_load_api_profile || return 1
