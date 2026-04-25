@@ -1,6 +1,6 @@
 # zsh-ai
 
-Oh-My-Zsh plugin for AI CLI aliases with configurable proxy and permission bypass.
+Oh-My-Zsh plugin for AI CLI aliases, quick operations, and configurable proxy.
 
 ## Install
 
@@ -68,3 +68,59 @@ export ZSH_AI_BYPASS="true"
 When `ZSH_AI_PROXY` is set, all commands are prefixed with the proxy command.
 
 When `ZSH_AI_BYPASS` is set to `"false"`, `--dangerously-skip-permissions` is not injected.
+
+## Quick Operations
+
+### Configuration
+
+```sh
+# AI backend: "claude" (default) / "codex" / "opencode" / "api"
+export ZSH_AI_BACKEND="claude"
+
+# Model (optional, backend-specific)
+export ZSH_AI_MODEL="sonnet"
+
+# Native API mode (when ZSH_AI_BACKEND="api")
+export ZSH_AI_API_URL="https://api.anthropic.com/v1/messages"
+export ZSH_AI_API_KEY="sk-ant-..."
+export ZSH_AI_API_MODEL="claude-sonnet-4-20250514"
+```
+
+### Commands
+
+#### `ask <description>`
+
+Translate natural language to a shell command, then confirm before executing.
+
+```sh
+ask "find all files larger than 100MB"
+#   find . -type f -size +100M
+# Execute? [y]es / [e]dit / [*]cancel:
+```
+
+- `y` — execute directly
+- `e` — load command into the edit buffer for modification
+- other — cancel
+
+#### `fix`
+
+Send the last failed command to AI for a corrected version.
+
+```sh
+$ grep -r "pattern" --incldue="*.py" .
+grep: unrecognized option '--incldue=*.py'
+
+$ fix
+# Analyzing: grep -r "pattern" --incldue="*.py" . (exit 2)...
+#   grep -r "pattern" --include="*.py" .
+# Execute? [y]es / [e]dit / [*]cancel:
+```
+
+### Backend Details
+
+| Backend | One-shot command | No persistence |
+|---------|-----------------|----------------|
+| `claude` | `claude -p --no-session-persistence` | `--no-session-persistence` |
+| `codex` | `codex exec --ephemeral` | `--ephemeral` |
+| `opencode` | `opencode run` | N/A |
+| `api` | `curl` + native HTTP request | N/A |

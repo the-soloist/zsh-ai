@@ -1,49 +1,20 @@
-# zsh-ai - AI CLI aliases with configurable proxy
+# zsh-ai - AI CLI aliases and quick operations
 #
-# Configuration (set in .zshrc before plugins are loaded):
+# Alias configuration:
 #   ZSH_AI_PROXY           - proxy command prefix (e.g., "proxychains4")
 #   ZSH_AI_SKIP_DEFAULTS   - set to "true" to skip default aliases
 #   ZSH_AI_BYPASS          - auto-inject --dangerously-skip-permissions (default: "true")
 #   ZSH_AI_ALIASES         - associative array of extra/override aliases
-#                            key = alias name, value = "command [args...]"
+#
+# Quick operations configuration:
+#   ZSH_AI_BACKEND         - "claude" (default) / "codex" / "opencode" / "api"
+#   ZSH_AI_MODEL           - model name (optional, backend-specific)
+#   ZSH_AI_API_URL         - API endpoint (required when ZSH_AI_BACKEND="api")
+#   ZSH_AI_API_KEY         - API key (required when ZSH_AI_BACKEND="api")
+#   ZSH_AI_API_MODEL       - model for API calls (required when ZSH_AI_BACKEND="api")
 
-local proxy="${ZSH_AI_PROXY:-}"
-local bypass=""
-if [[ "${ZSH_AI_BYPASS:-true}" == "true" ]]; then
-  bypass=" --dangerously-skip-permissions"
-fi
+local _zsh_ai_dir="${0:A:h}"
 
-_zsh_ai_mk_alias() {
-  if [[ -n "$proxy" ]]; then
-    alias "$1"="$proxy $2"
-  else
-    alias "$1"="$2"
-  fi
-}
-
-# Default aliases
-if [[ "$ZSH_AI_SKIP_DEFAULTS" != "true" ]]; then
-  _zsh_ai_mk_alias claude       "claude${bypass}"
-  _zsh_ai_mk_alias claude-safe  "claude"
-  _zsh_ai_mk_alias cl           "claude${bypass}"
-  _zsh_ai_mk_alias clr          "claude${bypass} --resume"
-  _zsh_ai_mk_alias clc          "claude${bypass} --continue"
-
-  _zsh_ai_mk_alias codex        "codex"
-  _zsh_ai_mk_alias co           "codex"
-  _zsh_ai_mk_alias cor          "codex resume"
-
-  _zsh_ai_mk_alias opencode     "opencode"
-  _zsh_ai_mk_alias oc           "opencode"
-  _zsh_ai_mk_alias occ          "opencode --continue"
-fi
-
-# User custom aliases (add or override)
-if (( ${+ZSH_AI_ALIASES} )); then
-  local name cmd
-  for name cmd in "${(@kv)ZSH_AI_ALIASES}"; do
-    _zsh_ai_mk_alias "$name" "$cmd"
-  done
-fi
-
-unfunction _zsh_ai_mk_alias
+source "${_zsh_ai_dir}/lib/aliases.zsh"
+source "${_zsh_ai_dir}/lib/backend.zsh"
+source "${_zsh_ai_dir}/lib/commands.zsh"
