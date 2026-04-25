@@ -32,6 +32,11 @@ _zsh_ai_err() {
   echo "${_ZSH_AI_C_RED}$1${_ZSH_AI_C_RESET}" >&2
 }
 
+_zsh_ai_sanitize() {
+  # strip ANSI escape sequences, carriage returns, and control chars (keep newline/tab)
+  command sed $'s/\033\[[0-9;]*[a-zA-Z]//g; s/\r//g' | command tr -d $'\001-\010\013\014\016-\037'
+}
+
 _zsh_ai_cmd_display() {
   local cmd="$1"
   if [[ $(echo "$cmd" | wc -l) -gt 1 ]]; then
@@ -97,6 +102,7 @@ Output ONLY the revised command, no explanation, no markdown formatting."
           _zsh_ai_err "No result from AI backend."
           return 1
         fi
+        cmd=$(echo "$cmd" | _zsh_ai_sanitize)
         ;;
       *)
         _zsh_ai_log "Cancelled."
@@ -134,6 +140,7 @@ Task: ${args[*]}"
     return 1
   fi
 
+  cmd=$(echo "$cmd" | _zsh_ai_sanitize)
   _zsh_ai_confirm "$cmd"
 }
 
@@ -191,6 +198,8 @@ Rules:
       return 1
     fi
 
+    cmd=$(echo "$cmd" | _zsh_ai_sanitize)
+
     if [[ "$cmd" == "[DONE]"* ]]; then
       echo "" >&2
       _zsh_ai_log "Task completed."
@@ -204,18 +213,22 @@ Rules:
 
     echo "" >&2
     _zsh_ai_cmd_display "$cmd"
-    _zsh_ai_warn_dangerous "$cmd"
+    local is_dangerous=1
+    _zsh_ai_warn_dangerous "$cmd" && is_dangerous=0
     echo "" >&2
 
     local output="" exit_code=0
 
-    if (( auto_approve )); then
+    if (( auto_approve )) && (( is_dangerous )); then
       output=$(eval "$cmd" 2>&1)
       exit_code=$?
       [[ -n "$output" ]] && echo "$output" >&2
     else
+      if (( auto_approve )) && ! (( is_dangerous )); then
+        _zsh_ai_warn "Auto-approve paused: dangerous command requires confirmation."
+      fi
       local choice
-      read "choice?${_ZSH_AI_C_DIM}[Y]es / [E]dit / [R]evise / [S]kip / [A]ll / [C]ancel:${_ZSH_AI_C_RESET} "
+      read "choice?${_ZSH_AI_C_DIM}[Y]es / [E]dit / [R]evise / [S]kip / [A]uto / [C]ancel:${_ZSH_AI_C_RESET} "
 
       case "$choice" in
         y|Y|"")
@@ -226,6 +239,7 @@ Rules:
         e|E)
           local edited="$cmd"
           vared edited
+          edited=$(echo "$edited" | _zsh_ai_sanitize)
           output=$(eval "$edited" 2>&1)
           exit_code=$?
           cmd="$edited"
@@ -298,5 +312,6 @@ Analyze the likely cause and provide the corrected command. Output ONLY the corr
     return 1
   fi
 
+  cmd=$(echo "$cmd" | _zsh_ai_sanitize)
   _zsh_ai_confirm "$cmd"
 }
