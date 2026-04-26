@@ -18,13 +18,15 @@ ask-agent() {
   local -a history
   local step=0
   local auto_approve=0
+  local context="" cmd output="" exit_code=0
+  local is_dangerous=1 choice edited feedback truncated conclusion reason
 
   _zsh_ai_log "Task: $task"
 
   while (( step < max_steps )); do
     ((step++))
 
-    local context=""
+    context=""
     if [[ ${#history[@]} -gt 0 ]]; then
       context="Previous steps:
 $(printf '%s\n' "${history[@]}")
@@ -33,18 +35,24 @@ $(printf '%s\n' "${history[@]}")
     fi
 
     local prompt="You are a shell automation agent. The user's shell is zsh on macOS.
+Working directory: $(pwd)
 Your task: $task
 
 ${context}Based on the task and any previous results, decide what to do next.
 
+Strategy:
+- Be thorough. Investigate from multiple angles before concluding.
+- If the task involves analysis or investigation, gather data from different perspectives (e.g., overview first, then drill into details, then summarize).
+- Do not declare done after a single command unless the task is trivially simple (e.g., 'list files').
+- Cross-verify results when possible.
+
 Rules:
-- If the task is complete, output: [DONE] followed by a brief conclusion summarizing what was accomplished and key results
+- If you have gathered enough information and the task is truly complete, output: [DONE] followed by a comprehensive conclusion with key findings
 - If the task cannot be completed, output: [FAILED] followed by the reason
 - Otherwise, output ONLY the next shell command to run, no explanation, no markdown formatting."
 
     echo "" >&2
     _zsh_ai_thinking "[Step $step] Thinking..."
-    local cmd
     cmd=$(_zsh_ai_query "$prompt" "$verbose")
 
     if [[ -z "$cmd" ]]; then
@@ -57,7 +65,7 @@ Rules:
     if [[ "$cmd" == "[DONE]"* ]]; then
       echo "" >&2
       _zsh_ai_log "Task completed."
-      local conclusion="${cmd#\[DONE\]}"
+      conclusion="${cmd#\[DONE\]}"
       conclusion="${conclusion#"${conclusion%%[![:space:]]*}"}"
       if [[ -n "$conclusion" ]]; then
         echo "" >&2
@@ -67,7 +75,7 @@ Rules:
     fi
     if [[ "$cmd" == "[FAILED]"* ]]; then
       echo "" >&2
-      local reason="${cmd#\[FAILED\]}"
+      reason="${cmd#\[FAILED\]}"
       reason="${reason#"${reason%%[![:space:]]*}"}"
       _zsh_ai_err "Task failed.${reason:+ $reason}"
       return 1
@@ -75,11 +83,11 @@ Rules:
 
     echo "" >&2
     _zsh_ai_cmd_display "$cmd"
-    local is_dangerous=1
+    is_dangerous=1
     _zsh_ai_warn_dangerous "$cmd" && is_dangerous=0
     echo "" >&2
 
-    local output="" exit_code=0
+    output="" exit_code=0
 
     if (( auto_approve )) && (( is_dangerous )); then
       output=$(eval "$cmd" 2>&1)
@@ -89,7 +97,7 @@ Rules:
       if (( auto_approve )) && ! (( is_dangerous )); then
         _zsh_ai_warn "Auto-approve paused: dangerous command requires confirmation."
       fi
-      local choice
+      choice=""
       read "choice?${_ZSH_AI_C_DIM}[Y]es / [E]dit / [R]evise / [S]kip / [A]uto / [C]ancel:${_ZSH_AI_C_RESET} "
 
       case "$choice" in
@@ -99,7 +107,7 @@ Rules:
           [[ -n "$output" ]] && echo "$output" >&2
           ;;
         e|E)
-          local edited="$cmd"
+          edited="$cmd"
           vared edited
           edited=$(echo "$edited" | _zsh_ai_sanitize)
           output=$(eval "$edited" 2>&1)
@@ -108,7 +116,7 @@ Rules:
           [[ -n "$output" ]] && echo "$output" >&2
           ;;
         r|R)
-          local feedback
+          feedback=""
           read "feedback?${_ZSH_AI_C_DIM}Revise:${_ZSH_AI_C_RESET} "
           if [[ -n "$feedback" ]]; then
             history+=("[Step $step] AI suggested: $cmd | User feedback: $feedback")
@@ -132,7 +140,7 @@ Rules:
       esac
     fi
 
-    local truncated="$output"
+    truncated="$output"
     if [[ $(echo "$output" | wc -l) -gt 50 ]]; then
       truncated="$(echo "$output" | head -20)
 ... (truncated) ...
