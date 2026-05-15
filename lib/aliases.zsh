@@ -1,7 +1,7 @@
 local proxy="${ZSH_AI_PROXY:-}"
 local bypass=""
 if [[ "${ZSH_AI_BYPASS:-false}" == "true" ]]; then
-  bypass=" --dangerously-skip-permissions"
+  bypass="--dangerously-skip-permissions"
 fi
 
 _zsh_ai_mk_alias() {
@@ -14,11 +14,11 @@ _zsh_ai_mk_alias() {
 
 # Default aliases
 if [[ "$ZSH_AI_SKIP_DEFAULTS" != "true" ]]; then
-  _zsh_ai_mk_alias claude       "claude${bypass}"
+  _zsh_ai_mk_alias claude       "claude ${bypass}"
   _zsh_ai_mk_alias claude-safe  "claude"
-  _zsh_ai_mk_alias cl           "claude${bypass}"
-  _zsh_ai_mk_alias clr          "claude${bypass} --resume"
-  _zsh_ai_mk_alias clc          "claude${bypass} --continue"
+  _zsh_ai_mk_alias cl           "claude ${bypass}"
+  _zsh_ai_mk_alias clr          "claude ${bypass} --resume"
+  _zsh_ai_mk_alias clc          "claude ${bypass} --continue"
 
   _zsh_ai_mk_alias codex        "codex"
   _zsh_ai_mk_alias co           "codex"
