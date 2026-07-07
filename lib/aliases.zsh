@@ -1,8 +1,14 @@
 local proxy="${ZSH_AI_PROXY:-}"
-local bypass=""
-if [[ "${ZSH_AI_BYPASS:-false}" == "true" ]]; then
-  bypass="--dangerously-skip-permissions"
-fi
+local perm=""
+case "${ZSH_AI_PERMISSION:-default}" in
+  bypass)  perm="--dangerously-skip-permissions" ;;
+  auto)    perm="--permission-mode auto" ;;
+  default) perm="" ;;
+  *)
+    print -u2 "zsh-ai: unknown ZSH_AI_PERMISSION '${ZSH_AI_PERMISSION}', falling back to 'default'"
+    perm=""
+    ;;
+esac
 
 _zsh_ai_mk_alias() {
   if [[ -n "$proxy" ]]; then
@@ -14,11 +20,11 @@ _zsh_ai_mk_alias() {
 
 # Default aliases
 if [[ "$ZSH_AI_SKIP_DEFAULTS" != "true" ]]; then
-  _zsh_ai_mk_alias claude       "claude ${bypass}"
+  _zsh_ai_mk_alias claude       "claude ${perm}"
   _zsh_ai_mk_alias claude-safe  "claude"
-  _zsh_ai_mk_alias cl           "claude ${bypass}"
-  _zsh_ai_mk_alias clr          "claude ${bypass} --resume"
-  _zsh_ai_mk_alias clc          "claude ${bypass} --continue"
+  _zsh_ai_mk_alias cl           "claude ${perm}"
+  _zsh_ai_mk_alias clr          "claude ${perm} --resume"
+  _zsh_ai_mk_alias clc          "claude ${perm} --continue"
 
   _zsh_ai_mk_alias codex        "codex"
   _zsh_ai_mk_alias co           "codex"

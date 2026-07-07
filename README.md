@@ -25,9 +25,17 @@ All variables are set in `.zshrc` before plugins are loaded.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ZSH_AI_PROXY` | `""` | Proxy command prefix (e.g., `proxychains4`, `proxychains4 -q`) |
-| `ZSH_AI_BYPASS` | `"false"` | Auto-inject `--dangerously-skip-permissions` into claude aliases |
+| `ZSH_AI_PERMISSION` | `"default"` | Claude permission mode injected into claude aliases: `default` / `auto` / `bypass` |
 | `ZSH_AI_SKIP_DEFAULTS` | unset | Set to `"true"` to skip all default aliases |
 | `ZSH_AI_ALIASES` | unset | Associative array of extra/override aliases |
+
+`ZSH_AI_PERMISSION` controls the flag injected into the `claude`, `cl`, `clr`, `clc` aliases:
+
+| Value | Injected flag | Behavior |
+|-------|---------------|----------|
+| `default` | *(none)* | Standard step-by-step permission prompts |
+| `auto` | `--permission-mode auto` | Auto-approve low-risk operations, still prompt for risky ones |
+| `bypass` | `--dangerously-skip-permissions` | Skip all permission prompts |
 
 ### Quick Operations
 
@@ -52,7 +60,7 @@ All variables are set in `.zshrc` before plugins are loaded.
 ```sh
 # @ zsh-ai
 export ZSH_AI_PROXY="proxychains4"
-export ZSH_AI_BYPASS="true"
+export ZSH_AI_PERMISSION="bypass"
 export ZSH_AI_BACKEND="claude"
 export ZSH_AI_MODEL="haiku"
 
@@ -67,13 +75,15 @@ export ZSH_AI_MODEL="haiku"
 
 ### Claude
 
+`<perm>` below is the flag injected by `ZSH_AI_PERMISSION` (empty for `default`).
+
 | Alias | Command |
 |-------|---------|
-| `claude` | `claude --dangerously-skip-permissions` |
+| `claude` | `claude <perm>` |
 | `claude-safe` | `claude` |
-| `cl` | `claude --dangerously-skip-permissions` |
-| `clr` | `claude --dangerously-skip-permissions --resume` |
-| `clc` | `claude --dangerously-skip-permissions --continue` |
+| `cl` | `claude <perm>` |
+| `clr` | `claude <perm> --resume` |
+| `clc` | `claude <perm> --continue` |
 
 ### Codex
 
@@ -93,7 +103,7 @@ export ZSH_AI_MODEL="haiku"
 
 When `ZSH_AI_PROXY` is set, all commands are prefixed with the proxy command.
 
-Claude aliases include `--dangerously-skip-permissions` only when `ZSH_AI_BYPASS="true"`.
+Claude aliases inject a permission flag based on `ZSH_AI_PERMISSION` (`default` → none, `auto` → `--permission-mode auto`, `bypass` → `--dangerously-skip-permissions`). `claude-safe` always runs without any flag.
 
 ## Quick Operations
 
